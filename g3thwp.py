@@ -1,9 +1,6 @@
 import os
 import numpy as np
-from scipy import signal
-import matplotlib.mlab as mlab
 import scipy.interpolate
-
 import so3g
 from spt3g import core
 
@@ -11,7 +8,7 @@ class G3tHWP():
     def __init__(self, debug=False):
 
         """
-        Class to manage a HWP HK data.
+        Class to manage a L2 HK data into HWP angle g3.
 
         Args
         -----
@@ -104,11 +101,19 @@ class G3tHWP():
             for f in filename: scanner.process_file(path + '/' + f)
         else: scanner.process_file(path + '/' + filename)
         arc = scanner.finalize()
+        if not any(arc.get_fields()[0]): 
+            print('INFO: No HK data in input g3 files: ' + filename)
+            self._start = 0
+            self._end = 0
+            return {}
 
+        self._start = arc.simple([key for key in arc.get_fields()[0].keys()][0])[0][0]
+        self._end = arc.simple([key for key in arc.get_fields()[0].keys()][0])[0][-1]
         for i in range(len(hwp_keys)):
             if not hwp_keys[i] in arc.get_fields()[0].keys():
-                raise ValueError('HWP is not spinning in this file!')
-
+                print('INFO: HWP is not spinning in input g3 files: ' + filename)
+                return {}
+            
         data_raw = arc.simple(hwp_keys)
         
         data = {'rising_edge_count':data_raw[0], 'irig_time':data_raw[1], 'counter':data_raw[2], 'counter_index':data_raw[3], \
@@ -172,7 +177,6 @@ class G3tHWP():
             rising_edge = []        
 
         if 'counter' in data.keys() and 'irig_time' in data.keys():
-            
             # Reject unexpected counter
             time = scipy.interpolate.interp1d(rising_edge, irig_time, kind='linear',fill_value='extrapolate')(counter)
             idx = np.where((time>=data['irig_time'][0][0]-2) & (time<=data['irig_time'][0][-1]+2))
@@ -217,9 +221,9 @@ class G3tHWP():
             locked = []
             stable = []
             hwp_rate = []
-        
+            
         slow_only_time = (np.arange(self._start,self._end,10))
-        if len(fast_irig_time)!=0:
+        if len(fast_irig_time)!=0:            
             slow_only_time = slow_only_time[np.where((slow_only_time<fast_irig_time[0]) | (slow_only_time>fast_irig_time[-1]))]
             slow_time = np.append(slow_only_time,fast_irig_time).flatten()
             slow_idx = np.argsort(slow_time)
@@ -259,8 +263,10 @@ class G3tHWP():
                            In this case one should find the hwp_angle populated in the fast data block.
             hwp_rate (float): the "approximate" HWP spin rate, with sign, in revs / second.  Use placeholder value of 0 for cases when not "locked".
         """
-        
-        #        if not os.path.isdir(self._path + '/' + dir_name): os.mkdir(self._path + '/' + dir_name)
+
+        if solved['slow_time'].size==0: 
+            print('INFO: No output file due to input solved data is empty')
+            return
         session = so3g.hk.HKSessionHelper(hkagg_version=2)
         writer = core.G3Writer(g3out)
         writer.Process(session.session_frame())
@@ -491,47 +497,16 @@ class G3tHWP():
         smurf_angle = scipy.interpolate.interp1d(self._time, self.angle, kind='linear',fill_value='extrapolate')(smurf_timestamp)
         return smurf_angle
     
-    def lowpass_filter(self, data, cut, fs, order=5):
-        import scipy as sp
-        N = len(data)
-        nyq = 0.5 * fs
-        lowcut = cut / nyq
-        b, a = signal.butter(order, lowcut, btype='low')
-        y = signal.filtfilt(b, a, data)
-        return y
 
-    def highpass_filter(self, data, cut, fs, order=5):
-        import scipy as sp
-        N = len(data)
-        nyq = 0.5 * fs
-        highcut = cut / nyq
-        b, a = signal.butter(order, highcut, btype='high')
-        y = signal.filtfilt(b, a, data)
-        return y
-
-    def bandpass_filter(self, data, lowcut, highcut, fs, order=5):
-        nyq = 0.5 * fs
-        low = lowcut / nyq
-        high = highcut / nyq
-        b, a = signal.butter(order, [low,high], btype='band')
-        y = signal.filtfilt(b, a, data)
-        return y
-
-    def psd(self, data, fs):
-        fft = mlab.psd(data, Fs=fs, NFFT=len(data))[0]
-        freq = mlab.psd(data, Fs=fs, NFFT=len(data))[1]
-        return fft, freq
-    
     def demod(self, data, time, fs, hwp_angle, bpf_width=0.1, lpf_cut=0.5):
-        
+
         start = time[0]
         stop = time[-1]
         diff_angle = np.diff(hwp_angle) % (2*np.pi)
         speed = (np.sum(diff_angle) / (stop - start)) / (2*np.pi)
-        
+
         data_bpf = self.bandpass_filter(data, speed-bpf_width, speed+bpf_width, fs)
         data_demod = (data_bpf * np.exp(-1j*(4*speed))).real
         data_demod_lpf = self.lowpass_filter(data_demod, lpf_cut, fs)
-        
+
         return data_demod_lpf
-    
