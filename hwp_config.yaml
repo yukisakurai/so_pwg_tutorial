@@ -1,0 +1,36 @@
+# start and end time for `update_hwp_angle.load_data` 
+start: 1618369921
+end: 1618373521
+# HK data directory for `update_hwp_angle.load_data` 
+data_dir: '/mnt/so1/data/ucsd-sat1/hk/'
+
+# input file name for `update_hwp_angle.load_file` 
+file_list: '/mnt/so1/data/ucsd-sat1/hk/16183/1618372860.g3'
+
+# logger verbose
+verbose: 3
+
+# prefix of field name 
+# You might need to change HBA since it is different between SAT
+field_instance: 'observatory.HBA.feeds.HWPEncoder'
+
+# HWP encoder field list
+field_list:
+- 'rising_edge_count'
+- 'irig_time'
+- 'counter'
+- 'counter_index'
+- 'irig_synch_pulse_clock_time'
+- 'irig_synch_pulse_clock_counts'
+- 'quad'
+
+# HWP OCS packet size
+packet_size: 120
+# number of encoder slot (570*2)
+num_edges: 1140
+# Reference slot width　
+ref_edges: 2
+# range of reference slot finding
+ref_range: 0.25
+# output g3 file path + name
+output: './output.g3'
