@@ -1,14 +1,16 @@
-# start and end time for `update_hwp_angle.load_data` 
-start: 1618369921
-end: 1618373521
 # HK data directory for `update_hwp_angle.load_data` 
 data_dir: '/mnt/so1/data/ucsd-sat1/hk/'
 
-# input file name for `update_hwp_angle.load_file` 
-file_list: '/mnt/so1/data/ucsd-sat1/hk/16183/1618372860.g3'
+# start and end time for `update_hwp_angle.load_data` 
+start: 1618369921
+end: 1618373521
 
-# logger verbose
-verbose: 3
+# input file name for `update_hwp_angle.load_file` 
+# Priority: start/end > file list
+# file_list will be ignored if you also input start/end
+file_list: 
+- '/mnt/so1/data/ucsd-sat1/hk/16183/1618372860.g3'
+- '/mnt/so1/data/ucsd-sat1/hk/16183/1618383667.g3'
 
 # prefix of field name 
 # You might need to change HBA since it is different between SAT
